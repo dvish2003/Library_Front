@@ -7,7 +7,7 @@ import {addUserMember, deleteUserMember, getAllUser, updateUserMember} from "../
 import type {Book, BookForm} from "../models/Books.ts";
 import {bookSave, bookUpdate, deleteBook, getAllBook} from "../service/bookService.ts";
 import type {BorrowBook, BorrowBookForm} from "../models/BorrowBook.ts";
-import {saveBorrowBook} from "../service/borrowBookService.ts";
+import {getAllBorrowBook, saveBorrowBook, updateBorrowBook} from "../service/borrowBookService.ts";
 
 export default function HomePage() {
     const [activeTab, setActiveTab] = useState("members");
@@ -26,6 +26,7 @@ export default function HomePage() {
     useEffect(() => {
         handleGetAllUser()
         handleGetAllBooks()
+        handleGetAllBorrowBook()
     }, []);
 
 
@@ -56,6 +57,7 @@ export default function HomePage() {
         payAmount: 0
     });
     const [borrowRecords, setBorrowRecords] = useState<BorrowBook[]>([]);
+    const [borrowRecords_2, setBorrowRecords_2] = useState<BorrowBook[]>([]);
 
 
 
@@ -182,7 +184,7 @@ export default function HomePage() {
             await showErrorAlert("Error", "Failed to update member. Please try again.");
         }
     }
-    const handldelete = async () => {
+    const handledelete = async () => {
         console.log("Delete button clicked with data:", formData);
        try{
            const response = await deleteUserMember(formData)
@@ -322,7 +324,7 @@ export default function HomePage() {
 
 
 
-
+//borrow......................................................
 
     const handleBorrowInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -339,6 +341,7 @@ export default function HomePage() {
      try {
          const response = await saveBorrowBook(borrowForm);
          if(response.status === 201) {
+             await handleGetAllBorrowBook();
              setBorrowForm({
                  bookId: '',
                  bookTitle: '',
@@ -364,11 +367,53 @@ export default function HomePage() {
     };
 
 
-    const handleEditBorrowRecord = () => {
-    };
+    const handleGetAllBorrowBook = async () => {
+        try {
+            const response = await getAllBorrowBook();
+            if (response.status === 200) {
+                const borrowRecords: BorrowBook[] = response.bookBorrows;
+                setBorrowRecords(borrowRecords);
 
-    const handleReturnBook = async () => {
-    };
+
+                const borrowRecordsStatusBorrow: BorrowBook[] = borrowRecords.filter(BR => BR.status === "borrowed");
+                console.log("ssssssssssssjjjjjjjjjjj",borrowRecordsStatusBorrow);
+                setBorrowRecords_2(borrowRecordsStatusBorrow);
+                console.log("Borrow books",borrowRecords)
+            } else {
+                await showErrorAlert("Error", "Failed to fetch borrow records. Please try again.");
+            }
+        } catch (e) {
+            console.log(e);
+            await showErrorAlert("Error", "Failed to fetch borrow records. Please try again.");
+        }
+
+    }
+
+    const handleReturnBook = async (recordeId:string) => {
+        try {
+            const borrowID = recordeId;
+
+            //getBorrowRecord
+            const borrowRecord = borrowRecords_2.find(record => record._id === borrowID);
+            borrowRecord.status = 'returned';
+            borrowRecord.payStatus = 'paid';
+            if (!borrowRecord) {
+                await showErrorAlert("Error", "Borrow record not found.");
+                return;
+            }
+            const response = await updateBorrowBook(borrowRecord);
+            if (response.status === 200) {
+                await handleGetAllBorrowBook();
+                await showSuccessAlert("Success", "Book returned successfully!");
+            } else {
+                await showErrorAlert("Error", "Failed to return book. Please try again.");
+            }
+
+    } catch (e){
+        console.log(e)
+    }
+
+};
     return (
         <div className="flex h-screen bg-gray-100">
             <div className="w-64 bg-blue-800 text-white p-4">
@@ -400,6 +445,15 @@ export default function HomePage() {
                             >
                                 <FaExchangeAlt className="mr-3" />
                                 Borrow Books
+                            </button>
+                        </li>
+                        <li>
+                            <button
+                                onClick={() => setActiveTab("history")}
+                                className={`flex items-center w-full p-2 rounded-lg ${activeTab === "history" ? "bg-blue-700" : "hover:bg-blue-600"}`}
+                            >
+                                <FaExchangeAlt className="mr-3" />
+                                History Borrow Books
                             </button>
                         </li>
                     </ul>
@@ -502,7 +556,7 @@ export default function HomePage() {
 
                                             <button
                                                 type="button"
-                                                onClick={handldelete}
+                                                onClick={handledelete}
                                                 className="bg-red-600 text-white py-2 px-6 rounded-md hover:bg-red-700 transition"
                                             >
                                                 Delete Member
@@ -831,7 +885,7 @@ export default function HomePage() {
                             </form>
                         </div>
 
-                        {/* Borrow Records Table */}
+
                         <div className="bg-white p-6 rounded-lg shadow-md">
                             <h3 className="text-xl font-semibold mb-4">Borrow Records</h3>
 
@@ -847,18 +901,19 @@ export default function HomePage() {
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Borrow Date</th>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Status</th>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                         </tr>
                                         </thead>
                                         <tbody className="bg-white divide-y divide-gray-200">
-                                       {/* {borrowRecords.map(record => (
+                                        {borrowRecords_2.map(record => (
                                             <tr key={record._id}>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div className="text-sm font-medium text-gray-900">
-                                                        {users.find(u => u._id === record.userId)?.name || 'Unknown'}
+                                                        {users.find(u => u._id === record.memberId)?.name || 'Unknown'}
                                                     </div>
                                                     <div className="text-sm text-gray-500">
-                                                        {users.find(u => u._id === record.userId)?.email || ''}
+                                                        {users.find(u => u._id === record.memberEmail)?.email || ''}
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
@@ -873,7 +928,7 @@ export default function HomePage() {
                                                     {new Date(record.borrowDate).toLocaleDateString()}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    {new Date(record.dueDate).toLocaleDateString()}
+                                                    {new Date(record.returnDate).toLocaleDateString()}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
@@ -883,13 +938,14 @@ export default function HomePage() {
                       {record.status}
                     </span>
                                                 </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                        ${record.payStatus === 'paid' ? 'bg-green-100 text-green-800' :
+                                                        'bg-blue-100 text-blue-800'}`}>
+                                                        {record.payStatus}
+                                                    </span>
+                                                </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                    <button
-                                                        onClick={() => handleEditBorrowRecord(record)}
-                                                        className="text-blue-600 hover:text-blue-900 mr-4"
-                                                    >
-                                                        Edit
-                                                    </button>
                                                     <button
                                                         onClick={() => handleReturnBook(record._id)}
                                                         className="text-green-600 hover:text-green-900 mr-4"
@@ -898,10 +954,84 @@ export default function HomePage() {
                                                     </button>
                                                 </td>
                                             </tr>
-                                        ))}*/}
+                                        ))}
                                         </tbody>
                                     </table>
                                 </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === "history" &&(
+                    <div>
+                        <h2 className="text-2xl font-bold mb-6">Borrow History</h2>
+                        <div className="bg-white p-6 rounded-lg shadow-md">
+                            {borrowRecords.length === 0 ? (
+                                <p className="text-gray-500">No borrow history found.</p>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Book</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Borrow Date</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Return Date</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Status</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200">
+                                        {borrowRecords.map(record => (
+                                            <tr key={record._id}>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="text-sm font-medium text-gray-900">
+                                                        {users.find(u => u._id === record.memberId)?.name || 'Unknown'}
+                                                    </div>
+                                                    <div className="text-sm text-gray-500">
+                                                        {users.find(u => u._id === record.memberEmail)?.email || ''}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="text-sm font-medium text-gray-900">
+                                                        {books.find(b => b._id === record.bookId)?.title || 'Unknown'}
+                                                    </div>
+                                                    <div className="text-sm text-gray-
+500">
+                                                        {books.find(b => b._id === record.bookId)?.author || ''}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    {new Date(record.borrowDate).toLocaleDateString()}
+                                                </td>
+
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    {new Date(record.returnDate).toLocaleDateString()}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                                        ${record.status === 'borrowed' ? 'bg-yellow-100 text-yellow-800' :
+                                                        record.status === 'returned' ? 'bg-green-100 text-green-800' :
+                                                            'bg-red-100 text-red-800'}`}>
+                                                        {record.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                                        ${record.payStatus === 'paid' ? 'bg-green-100 text-green-800' :
+                                                        'bg-blue-100 text-blue-800'}`}>
+                                                        {record.payStatus}
+                                                    </span>
+                                                </td>
+
+                                            </tr>
+
+                                        ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+
                             )}
                         </div>
                     </div>

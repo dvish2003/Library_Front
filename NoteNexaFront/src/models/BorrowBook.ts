@@ -22,3 +22,7 @@ export type BorrowBookForm = {
     payStatus: "paid" | "lending";
     payAmount: number;
 }
+
+export type updateBookForm = {
+    id: string
+}
