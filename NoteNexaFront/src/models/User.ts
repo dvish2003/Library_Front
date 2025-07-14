@@ -24,3 +24,18 @@ export type LoginFormUser = {
     email: string;
     password: string;
 }
+
+export type LibraryMemberUser = {
+    _id:string,
+    name:string,
+    email: string,
+    contact: string,
+    address: string
+}
+export type LibraryMemberUserForm = {
+    _id?:string,
+    name:string,
+    email: string,
+    contact: string,
+    address: string
+}

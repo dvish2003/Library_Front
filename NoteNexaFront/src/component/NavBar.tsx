@@ -39,7 +39,6 @@ export default function NavBar() {
         { name: "Home", href: "/" },
         { name: "Features", href: "#features" },
         { name: "About", href: "#about" },
-        { name: "Testimonials", href: "#testimonials" }
     ];
 
     return (
@@ -57,7 +56,7 @@ export default function NavBar() {
                         className="flex items-center"
                     >
                         <a href="/" className="text-2xl font-['Bruno_Ace_SC'] text-white tracking-tight">
-                            <span className="text-yellow-400">Note</span>Nexa
+                            <span className="text-yellow-400">Book</span>Nexus
                         </a>
                     </motion.div>
 

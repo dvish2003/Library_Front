@@ -1,323 +1,912 @@
-import { useState, useEffect } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiSearch } from 'react-icons/fi';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from "react-router-dom";
-import type {Note, NoteDeleteForm, NoteForm} from "../models/Note.ts";
-import {addNote, deleteNote, getAllNote} from "../service/noteService.ts";
+import React, {useEffect, useState} from "react";
+import { FaUsers, FaBook, FaExchangeAlt } from "react-icons/fa";
+import type { LibraryMemberUser, LibraryMemberUserForm } from "../models/User.ts";
 import withReactContent from "sweetalert2-react-content";
 import Swal from "sweetalert2";
-
+import {addUserMember, deleteUserMember, getAllUser, updateUserMember} from "../service/userService.ts";
+import type {Book, BookForm} from "../models/Books.ts";
+import {bookSave, bookUpdate, deleteBook, getAllBook} from "../service/bookService.ts";
+import type {BorrowBook, BorrowBookForm} from "../models/BorrowBook.ts";
+import {saveBorrowBook} from "../service/borrowBookService.ts";
 
 export default function HomePage() {
-  const MySwal = withReactContent(Swal);
+    const [activeTab, setActiveTab] = useState("members");
+    const MySwal = withReactContent(Swal);
 
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [, setNote_1] = useState<Note[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentNote, setCurrentNote] = useState<Note | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [formData, setFormData] = useState<NoteForm>({
-    title: '',
-    content: ''
-  });
-
-  const navigate = useNavigate();
-  const isAuth = localStorage.getItem("isAuth") === "true";
-
-  useEffect(() => {
-    if (!isAuth) {
-      navigate('/');
-    }
-  }, [isAuth, navigate]);
-
-
-  useEffect(() => {
-    loadAllNotes()
-  }, []);
-
-  const loadAllNotes = async () => {
-    const response = await getAllNote();
-    const email = localStorage.getItem('email') as string;
-
-    if (response.status === 200) {
-
-        setNote_1(response.data);
-
-        //filter use emailsetNotes(response.data)
-        const filteredNotes = response.data.filter((note: Note) => note.userName === email);
-        setNotes(filteredNotes);
-    }
-  }
-
-  const showErrorAlert = (title: string, html: string) => {
-    return MySwal.fire({
-      title: `<strong>${title}</strong>`,
-      html: `<i>${html}</i>`,
-      icon: 'error',
-      background: '#1F2937',
-      color: '#F3F4F6',
-      confirmButtonText: 'OK',
-      confirmButtonColor: '#F59E0B',
-      buttonsStyling: false,
-      customClass: {
-        container: 'dark',
-        popup: 'bg-gray-800 rounded-xl border border-gray-700',
-        title: 'text-2xl font-bold text-white',
-        htmlContainer: 'text-gray-300',
-        confirmButton: 'bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-yellow-500/20'
-      }
+    //users..............................................................................................
+    const [users, setUsers] = useState<LibraryMemberUser[]>([]);
+    const [formData, setFormData] = useState<LibraryMemberUserForm>({
+        name: "",
+        email: "",
+        contact: "",
+        address: ""
     });
-  };
 
-  const filteredNotes = notes.filter(note =>
-      note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      note.content.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+    //user Effect......................................................................................................
+    useEffect(() => {
+        handleGetAllUser()
+        handleGetAllBooks()
+    }, []);
 
-  const handleAddNote = () => {
-    setCurrentNote(null);
-    setFormData({ title: '', content: '' });
-    setIsModalOpen(true);
-  };
 
-  const handleEditNote = (note: Note) => {
-    setCurrentNote(note);
-    setFormData({ title: note.title, content: note.content });
-    setIsModalOpen(true);
-  };
+    //books...............................................................................................
+    const [books, setBooks] = useState<Book[]>([]);
+    const [bookFrom,setBookFrom] = useState<BookForm>({
+        title: "",
+        author: "",
+        availableCopies: 0,
+        totalCopies: 0,
+        description: ""
+    })
 
-  const handleDeleteNote = async (id: string) => {
-  console.log("dddddddddddd",id)
+    const[click,setIsClick] = useState(false);
+    const[bookClick,setBookIsClick] = useState(false);
 
-    const note:NoteDeleteForm = {
-        _id: id
-    }
-    const response = await deleteNote(note);
-    if (response.status === 200) {
-      setNotes(notes.filter(note => note._id !== id));
-      MySwal.fire({
-        title: 'Success',
-        text: 'Note deleted successfully!',
-        icon: 'success',
-        confirmButtonText: 'OK',
-        background: '#1F2937',
-        color: '#F3F4F6',
-        confirmButtonColor: '#F59E0B',
-      });
-      loadAllNotes();
-    } else {
-      showErrorAlert('Error', response.message);
-    }
 
-  };
+    //borrowBooks....................................................................................................
+    const [borrowForm, setBorrowForm] = useState<BorrowBookForm>({
+        bookId: '',
+        bookTitle: '',
+        memberId: '',
+        memberEmail: '',
+        borrowDate: new Date().toISOString().split('T')[0],
+        returnDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        status: 'borrowed',
+        payStatus:"paid",
+        payAmount: 0
+    });
+    const [borrowRecords, setBorrowRecords] = useState<BorrowBook[]>([]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-  const userId:string  = localStorage.getItem('userId') as string;
-  const email:string = localStorage.getItem('email') as string;
-    if (currentNote) {
-      setNotes(notes.map(note =>
-          note._id === currentNote._id
-              ? { ...note, title: formData.title, content: formData.content, updatedAt: new Date() }
-              : note
-      ));
-    } else {
-      const newNote: Note = {
-        _id:"",
-        title: formData.title,
-        content: formData.content,
-        createdAt:"",
-        userId:userId,
-        userName: email
-      };
 
-      if(newNote.title != null && newNote.content != null){
-       const response =  addNote(newNote)
-        response.then((data) => {
-          if (data.status === 200) {
-            setNotes(prevNotes => [...prevNotes, data.data]);
-            loadAllNotes();
-            setFormData({ title: '', content: '' });
-            MySwal.fire({
-              title: 'Success',
-              text: 'Note added successfully!',
-              icon: 'success',
-              confirmButtonText: 'OK',
-              background: '#1F2937',
-              color: '#F3F4F6',
-              confirmButtonColor: '#F59E0B',
-            });
-          } else {
-            showErrorAlert('Error', data.message);
-          }
-        }).catch((error) => {
-          console.error("Error adding note:", error);
-          showErrorAlert('Error', 'Failed to add note. Please try again.');
+
+
+
+
+    const showSuccessAlert = (title: string, html: string) => {
+        return MySwal.fire({
+            title: `<strong>${title}</strong>`,
+            html: `<i>${html}</i>`,
+            icon: 'success',
+            background: '#1F2937',
+            color: '#F3F4F6',
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#F59E0B',
+            buttonsStyling: false,
+            customClass: {
+                container: 'dark',
+                popup: 'bg-gray-800 rounded-xl border border-gray-700',
+                title: 'text-2xl font-bold text-white',
+                htmlContainer: 'text-gray-300',
+                confirmButton: 'bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-yellow-500/20'
+            }
         });
-      }
+    };
+    const showErrorAlert = (title: string, html: string) => {
+        return MySwal.fire({
+            title: `<strong>${title}</strong>`,
+            html: `<i>${html}</i>`,
+            icon: 'error',
+            background: '#1F2937',
+            color: '#F3F4F6',
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#F59E0B',
+            buttonsStyling: false,
+            customClass: {
+                container: 'dark',
+                popup: 'bg-gray-800 rounded-xl border border-gray-700',
+                title: 'text-2xl font-bold text-white',
+                htmlContainer: 'text-gray-300',
+                confirmButton: 'bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-yellow-500/20'
+            }
+        });
+    };
+
+
+    //Handle Users...............................................................................
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    };
+    const handleGetAllUser = async () => {
+
+        try{
+            const response = await getAllUser();
+            if (response.status === 200) {
+                const users: LibraryMemberUser[] = response.message;
+                setUsers(users);
+            }
+            else {
+                await showErrorAlert("Error", "Failed to fetch members. Please try again.");
+            }
+
+        }catch (e) {
+            console.log(e);
+        }
 
     }
-    setIsModalOpen(false);
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            console.log(formData);
+            const response = await addUserMember(formData);
 
 
-  return (
-      <div className="min-h-screen bg-gray-900 text-gray-100">
-        {/* Main Content */}
-        <main className="container mx-auto px-4 py-8 overflow-y-hidden">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-xl font-semibold">Your Notes</h2>
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                    type="text"
-                    placeholder="Search notes..."
-                    className="bg-gray-800 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-purple-600"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <button
-                  onClick={handleAddNote}
-                  className="flex items-center space-x-2 px-4 py-2 rounded-full bg-purple-600 hover:bg-purple-700 text-white transition-colors"
-              >
-                <FiPlus />
-                <span>Add Note</span>
-              </button>
+            if (response.status === 201) {
+                setFormData({
+                    name: "",
+                    email: "",
+                    contact: "",
+                    address: ""
+                });
+                await handleGetAllUser()
+                await showSuccessAlert("Success", "Member added successfully!");
+            }
+            else {
+                await showErrorAlert("Error", "Failed to add member. Please try again.");
+            }
+        }catch (e) {
+            console.error("Error adding member:", e);
+            await   showErrorAlert("Error", "Failed to add member. Please try again.");
+        }
+
+
+    };
+    const handleRowClick = (user:LibraryMemberUser) => {
+        console.log("Row clicked:", user);
+        setFormData(user)
+        setIsClick(true)
+  }
+    const handleUpdate = async () => {
+        console.log("Update button clicked with data:", formData);
+        try {
+            const response = await updateUserMember(formData);
+
+            if (response.status === 201) {
+                setFormData({
+                    name: "",
+                    email: "",
+                    contact: "",
+                    address: ""
+                });
+                await handleGetAllUser();
+                await showSuccessAlert("Success", "Member updated successfully!");
+                setIsClick(false)
+            } else {
+                await showErrorAlert("Error", "Failed to update member. Please try again.");
+            }
+        } catch (e) {
+            console.error("Error updating member:", e);
+            await showErrorAlert("Error", "Failed to update member. Please try again.");
+        }
+    }
+    const handldelete = async () => {
+        console.log("Delete button clicked with data:", formData);
+       try{
+           const response = await deleteUserMember(formData)
+
+           if(response.status === 200) {
+               setFormData({
+                   name: "",
+                   email: "",
+                   contact: "",
+                   address: ""
+               });
+               await handleGetAllUser();
+               await showSuccessAlert("Success", "Member deleted successfully!");
+               setIsClick(false)
+           }
+              else {
+                await showErrorAlert("Error", "Failed to delete member. Please try again.");
+              }
+       }catch (e) {
+           console.log(e);
+       }
+    }
+
+
+    //Handle Books................................................................................
+    const handleBookInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setBookFrom(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    };
+    const handleBookSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        console.log(
+            "Book data submitted:", bookFrom
+        )
+
+        try {
+            if(bookFrom.totalCopies == 0 || bookFrom.availableCopies == 0){
+                await showErrorAlert("Validation Error", "Total copies and available copies must be greater than zero.");
+                return;
+            }
+            const response = await bookSave(bookFrom);
+            if(response.status === 201) {
+                setBookFrom({
+                    title: "",
+                    author: "",
+                    availableCopies: 0,
+                    totalCopies: 0,
+                    description: ""
+                })
+                await handleGetAllBooks();
+                await showSuccessAlert("Success", "Book added successfully!");
+            }
+            else {
+                await showErrorAlert("Error", "Failed to add book. Please try again.");
+            }
+        }catch (e) {
+            console.log(e)
+            showErrorAlert("Error", "Failed to add book. Please try again.");
+        }
+
+    }
+    const handleBookUpdate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        console.log("BOOK Update");
+        try {
+            const response = await bookUpdate(bookFrom);
+            if (response.status === 200) {
+                setBookFrom({
+                    title: "",
+                    author: "",
+                    availableCopies: 0,
+                    totalCopies: 0,
+                    description: ""
+                })
+                setBookIsClick(false)
+                await handleGetAllBooks();
+                await showSuccessAlert("Success", "Book Update successfully!");
+            }
+            else {
+                await showErrorAlert("Error", "Failed to update book. Please try again.");
+            }
+        }catch (e) {
+            console.log(e)
+            await showErrorAlert("Error", "Failed to add book. Please try again.");
+
+        }
+
+    }
+    const handleBookDelete = async (e: React.FormEvent) => {
+        e.preventDefault();
+        console.log("BOOK delete");
+       try {
+           const response = await deleteBook(bookFrom);
+           if (response.status === 200) {
+               setBookFrom({
+                   title: "",
+                   author: "",
+                   availableCopies: 0,
+                   totalCopies: 0,
+                   description: ""
+               })
+               setBookIsClick(false)
+               await handleGetAllBooks();
+               await showSuccessAlert("Success", "Book delete successfully!");
+           }
+           else {
+               await showErrorAlert("Error", "Failed to delete book. Please try again.");
+           }
+       }catch (e){
+           console.log(e)
+              await showErrorAlert("Error", "Failed to delete book. Please try again.");
+       }
+
+    }
+    const handleBookRowClick = (book:Book) => {
+        console.log("Row clicked:", book);
+        setBookFrom(book)
+        setBookIsClick(true)
+    }
+    const handleGetAllBooks = async () => {
+        try {
+            const response = await getAllBook();
+            if (response.status === 200) {
+                const books: Book[] = response.books;
+                setBooks(books);
+            } else {
+                await showErrorAlert("Error", "Failed to fetch books. Please try again.");
+            }
+        } catch (e) {
+            console.log(e);
+            await showErrorAlert("Error", "Failed to fetch books. Please try again.");
+        }
+    }
+
+
+
+
+
+    const handleBorrowInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setBorrowForm(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    };
+
+
+    const handleBorrowSubmit = async (e:React.FormEvent) => {
+        e.preventDefault();
+
+     try {
+         const response = await saveBorrowBook(borrowForm);
+         if(response.status === 201) {
+             setBorrowForm({
+                 bookId: '',
+                 bookTitle: '',
+                 memberId: '',
+                 memberEmail: '',
+                 borrowDate: new Date().toISOString().split('T')[0],
+                 returnDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                 status: 'borrowed',
+                 payStatus:"paid",
+                 payAmount: 0
+             });
+             await showSuccessAlert("Success", "Book borrowed successfully!");
+         }
+         else {
+             await showErrorAlert("Error", "Failed to borrow book. Please try again.");
+         }
+
+     }catch (e){
+            console.error("Error borrowing book:", e);
+            await showErrorAlert("Error", "Failed to borrow book. Please try again.");
+     }
+
+    };
+
+
+    const handleEditBorrowRecord = () => {
+    };
+
+    const handleReturnBook = async () => {
+    };
+    return (
+        <div className="flex h-screen bg-gray-100">
+            <div className="w-64 bg-blue-800 text-white p-4">
+                <h1 className="text-2xl font-bold mb-8">Library System</h1>
+                <nav>
+                    <ul className="space-y-2">
+                        <li>
+                            <button
+                                onClick={() => setActiveTab("members")}
+                                className={`flex items-center w-full p-2 rounded-lg ${activeTab === "members" ? "bg-blue-700" : "hover:bg-blue-600"}`}
+                            >
+                                <FaUsers className="mr-3" />
+                                Members
+                            </button>
+                        </li>
+                        <li>
+                            <button
+                                onClick={() => setActiveTab("books")}
+                                className={`flex items-center w-full p-2 rounded-lg ${activeTab === "books" ? "bg-blue-700" : "hover:bg-blue-600"}`}
+                            >
+                                <FaBook className="mr-3" />
+                                Books
+                            </button>
+                        </li>
+                        <li>
+                            <button
+                                onClick={() => setActiveTab("borrow")}
+                                className={`flex items-center w-full p-2 rounded-lg ${activeTab === "borrow" ? "bg-blue-700" : "hover:bg-blue-600"}`}
+                            >
+                                <FaExchangeAlt className="mr-3" />
+                                Borrow Books
+                            </button>
+                        </li>
+                    </ul>
+                </nav>
             </div>
-          </div>
 
-          {filteredNotes.length === 0 ? (
-              <div className="text-center py-12 rounded-xl bg-gray-800">
-                <div className="w-64 h-64 mx-auto mb-4 bg-gray-700 rounded-full flex items-center justify-center">
-                  <FiPlus className="text-4xl text-gray-500" />
-                </div>
-                <h3 className="text-xl font-medium mb-2">No notes found</h3>
-                <p className="text-gray-400">
-                  {searchTerm ? 'Try a different search term' : 'Create your first note by clicking the Add Note button'}
-                </p>
-              </div>
-          ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredNotes.map((note) => (
-                    <motion.div
-                        key={note._id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="rounded-xl overflow-hidden shadow-lg bg-gray-800"
-                    >
-                      <div
-                          className="h-2 w-full"
-                          style={{ backgroundColor:'#E5E7EB' }}
-                      />
-                      <div className="p-5">
-                        <div className="flex justify-between items-start mb-3">
-                          <h3 className="text-lg font-semibold line-clamp-1">{note.title}</h3>
-                          <div className="flex space-x-2">
-                            <button
-                                onClick={() => handleEditNote(note)}
-                                className="p-2 rounded-full hover:bg-gray-700"
-                            >
-                              <FiEdit2 className="text-blue-500" />
-                            </button>
-                            <button
-                                onClick={() => handleDeleteNote(note._id)}
-                                className="p-2 rounded-full hover:bg-gray-700"
-                            >
-                              <FiTrash2 className="text-red-500" />
-                            </button>
-                          </div>
+            <div className="flex-1 p-8 overflow-auto">
+                {activeTab === "members" && (
+                    <div>
+                        <h2 className="text-2xl font-bold mb-6">Member Management</h2>
+                        <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+                            {!click && (
+                                <h3 className="text-xl font-semibold mb-4">Add New Member</h3>
+                            )}
+
+                            {click && (
+                                <h3 className="text-xl font-semibold mb-4">Update or Delete Member</h3>
+                            )}
+
+                            <form onSubmit={handleSubmit}>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                    {click && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Id</label>
+                                            <input
+                                                type="text"
+                                                name="_id"
+                                                value={formData._id}
+                                                onChange={handleInputChange}
+                                                className="w-full p-2 border border-gray-300 rounded-md"
+                                                readOnly={true}
+                                            />
+                                        </div>
+                                    )}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                                        <input
+                                            type="text"
+                                            name="name"
+                                            value={formData.name}
+                                            onChange={handleInputChange}
+                                            className="w-full p-2 border border-gray-300 rounded-md"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                        <input
+                                            type="email"
+                                            name="email"
+                                            value={formData.email}
+                                            onChange={handleInputChange}
+                                            className="w-full p-2 border border-gray-300 rounded-md"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Contact</label>
+                                        <input
+                                            type="tel"
+                                            name="contact"
+                                            value={formData.contact}
+                                            onChange={handleInputChange}
+                                            className="w-full p-2 border border-gray-300 rounded-md"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                                        <input
+                                            type="text"
+                                            name="address"
+                                            value={formData.address}
+                                            onChange={handleInputChange}
+                                            className="w-full p-2 border border-gray-300 rounded-md"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-wrap gap-4 mt-4">
+                                    {!click && (
+                                        <button
+                                            type="submit"
+                                            className="bg-blue-600 text-white py-2 px-6 rounded-md hover:bg-blue-700 transition"
+                                        >
+                                            Add Member
+                                        </button>
+                                    )}
+
+                                    {click && (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={handleUpdate}
+                                                className="bg-green-600 text-white py-2 px-6 rounded-md hover:bg-green-700 transition"
+                                            >
+                                                Update Member
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={handldelete}
+                                                className="bg-red-600 text-white py-2 px-6 rounded-md hover:bg-red-700 transition"
+                                            >
+                                                Delete Member
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+
+                            </form>
                         </div>
-                        <p className="mb-4 text-gray-300 line-clamp-3">
-                          {note.content}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Last updated: {note.createdAt}
-                        </p>
-                      </div>
-                    </motion.div>
-                ))}
-              </div>
-          )}
-        </main>
 
-        {/* Note Modal */}
-        <AnimatePresence>
-          {isModalOpen && (
-              <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-                  onClick={() => setIsModalOpen(false)}
-              >
-                <motion.div
-                    initial={{ scale: 0.9, y: 20 }}
-                    animate={{ scale: 1, y: 0 }}
-                    exit={{ scale: 0.9, y: 20 }}
-                    className="w-full max-w-md rounded-xl shadow-2xl bg-gray-800"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="p-6">
-                    <h2 className="text-xl font-bold mb-4">
-                      {currentNote ? 'Edit Note' : 'Add New Note'}
-                    </h2>
-                    <form onSubmit={handleSubmit}>
-                      <div className="mb-4">
-                        <label className="block mb-2 font-medium text-gray-300">
-                          Title
-                        </label>
-                        <input
-                            type="text"
-                            name="title"
-                            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
-                            placeholder="Note title"
-                            value={formData.title}
-                            onChange={handleInputChange}
-                            required
-                        />
-                      </div>
-                      <div className="mb-6">
-                        <label className="block mb-2 font-medium text-gray-300">
-                          Content
-                        </label>
-                        <textarea
-                            name="content"
-                            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
-                            placeholder="Write your note here..."
-                            rows={5}
-                            value={formData.content}
-                            onChange={handleInputChange}
-                        />
-                      </div>
-                      <div className="flex justify-end space-x-3">
-                        <button
-                            type="button"
-                            onClick={() => setIsModalOpen(false)}
-                            className="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white transition-colors"
-                        >
-                          {currentNote ? 'Update Note' : 'Save Note'}
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </motion.div>
-              </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-  );
+                        <div className="bg-white p-6 rounded-lg shadow-md">
+                            <h3 className="text-xl font-semibold mb-4">Members List</h3>
+                            {users.length === 0 ? (
+                                <p className="text-gray-500">No members added yet.</p>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200" >
+                                        {users.map((user) => (
+                                            <tr key={user._id}
+                                                onClick={() => handleRowClick(user)}
+                                            >
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user._id}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.name}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.contact}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.address}</td>
+                                            </tr>
+                                        ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === "books" && (
+                    <div>
+                        <h2 className="text-2xl font-bold mb-6">Book Management</h2>
+                        <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+                            {!click && (
+                                <h3 className="text-xl font-semibold mb-4">Add New Book</h3>
+                            )}
+
+                            {click && (
+                                <h3 className="text-xl font-semibold mb-4">Update or Delete Book</h3>
+                            )}
+
+                            <form onSubmit={handleBookSubmit}>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                    {bookClick && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Book Id</label>
+                                            <input
+                                                type="text"
+                                                name="_id"
+                                                value={bookFrom._id}
+                                                onChange={handleBookInputChange}
+                                                className="w-full p-2 border border-gray-300 rounded-md"
+                                                readOnly={true}
+                                            />
+                                        </div>
+                                    )}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Book Title</label>
+                                        <input
+                                            type="text"
+                                            name="title"
+                                            value={bookFrom.title}
+                                            onChange={handleBookInputChange}
+                                            className="w-full p-2 border border-gray-300 rounded-md"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Author</label>
+                                        <input
+                                            type="text"
+                                            name="author"
+                                            value={bookFrom.author}
+                                            onChange={handleBookInputChange}
+                                            className="w-full p-2 border border-gray-300 rounded-md"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Book available Copies</label>
+                                        <input
+                                            type="number"
+                                            name="availableCopies"
+                                            value={bookFrom.availableCopies}
+                                            onChange={handleBookInputChange}
+                                            className="w-full p-2 border border-gray-300 rounded-md"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Book Total</label>
+                                        <input
+                                            type="number"
+                                            name="totalCopies"
+                                            value={bookFrom.totalCopies}
+                                            onChange={handleBookInputChange}
+                                            className="w-full p-2 border border-gray-300 rounded-md"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Book Description</label>
+                                        <input
+                                            type="text"
+                                            name="description"
+                                            value={bookFrom.description}
+                                            onChange={handleBookInputChange}
+                                            className="w-full p-2 border border-gray-300 rounded-md"
+                                            required
+                                        />
+                                    </div>
+
+                                </div>
+
+                                <div className="flex flex-wrap gap-4 mt-4">
+                                    {!bookClick && (
+                                        <button
+                                            type="submit"
+                                            className="bg-blue-600 text-white py-2 px-6 rounded-md hover:bg-blue-700 transition"
+                                        >
+                                            Add Book
+                                        </button>
+                                    )}
+
+                                    {bookClick && (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={handleBookUpdate}
+                                                className="bg-green-600 text-white py-2 px-6 rounded-md hover:bg-green-700 transition"
+                                            >
+                                                Update Book
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={handleBookDelete}
+                                                className="bg-red-600 text-white py-2 px-6 rounded-md hover:bg-red-700 transition"
+                                            >
+                                                Delete Book
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+
+                            </form>
+                        </div>
+
+                        <div className="bg-white p-6 rounded-lg shadow-md">
+                            <h3 className="text-xl font-semibold mb-4">Book List</h3>
+                            {books.length === 0 ? (
+                                <p className="text-gray-500">No Book added yet.</p>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Author</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Available Copies</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Copies</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200" >
+                                        {books.map(book => (
+                                            <tr key={book._id}
+                                                onClick={() => handleBookRowClick(book)}
+                                            >
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{book._id}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{book.title}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{book.author}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{book.availableCopies}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{book.totalCopies}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{book.description}</td>
+                                            </tr>
+                                        ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === "borrow" && (
+                    <div>
+                        <h2 className="text-2xl font-bold mb-6">Borrow Books</h2>
+                        <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+                            <h3 className="text-xl font-semibold mb-4">Create New Borrow Record</h3>
+
+                            <form onSubmit={handleBorrowSubmit}>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+
+                                    <div className="col-span-1">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Select Member</label>
+                                        <select
+                                            name="memberId"
+                                            value={borrowForm.memberId}
+                                            onChange={handleBorrowInputChange}
+                                            className="w-full p-2 border border-gray-300 rounded-md"
+                                            required
+                                        >
+                                            <option value="">Select a member</option>
+                                            {users.map(user => (
+                                                <option key={user._id}
+                                                        value={user._id}>
+                                                        {user.name} ({user.email})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Book Selection */}
+                                    <div className="col-span-1">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Select Book</label>
+                                        <select
+                                            name="bookId"
+                                            value={borrowForm.bookId}
+                                            onChange={handleBorrowInputChange}
+                                            className="w-full p-2 border border-gray-300 rounded-md"
+                                            required
+                                        >
+                                            <option value="">Select a book</option>
+                                            {books.filter(book => book.availableCopies > 0).map(book => (
+                                                <option key={book._id} value={book._id}>
+                                                    {book.title} by {book.author} (Available: {book.availableCopies})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Borrow Date */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Borrow Date</label>
+                                        <input
+                                            type="date"
+                                            name="borrowDate"
+                                            value={borrowForm.borrowDate}
+                                            onChange={handleBorrowInputChange}
+                                            className="w-full p-2 border border-gray-300 rounded-md"
+                                            min={new Date().toISOString().split('T')[0]}
+                                            required
+                                        />
+                                    </div>
+
+                                    {/* Due Date */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                                        <input
+                                            type="date"
+                                            name="dueDate"
+                                            value={borrowForm.returnDate}
+                                            onChange={handleBorrowInputChange}
+                                            min={borrowForm.borrowDate || new Date().toISOString().split('T')[0]}
+                                            className="w-full p-2 border border-gray-300 rounded-md"
+                                            required
+                                        />
+                                    </div>
+
+
+                                    {/* Status */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                                        <select
+                                            name="status"
+                                            value={borrowForm.status}
+                                            onChange={handleBorrowInputChange}
+                                            className="w-full p-2 border border-gray-300 rounded-md"
+                                            required
+                                        >
+                                            <option value="borrowed">Borrowed</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Pay Status</label>
+                                        <select
+                                            name="payStatus"
+                                            value={borrowForm.payStatus}
+                                            onChange={handleBorrowInputChange}
+                                            className="w-full p-2 border border-gray-300 rounded-md"
+                                            required
+                                        >
+                                            <option value="paid">pay</option>
+                                            <option value="lending">lending</option>
+                                        </select>
+                                    </div>
+
+                                </div>
+
+                                <div className="flex gap-4 mt-4">
+                                    <button
+                                        type="submit"
+                                        className="bg-blue-600 text-white py-2 px-6 rounded-md hover:bg-blue-700 transition"
+                                    >
+                                        Save Record
+                                    </button>
+
+                                 {/*   <button
+                                        type="button"
+                                        onClick={handleBorrowReset}
+                                        className="bg-gray-500 text-white py-2 px-6 rounded-md hover:bg-gray-600 transition"
+                                    >
+                                        Clear Form
+                                    </button>*/}
+                                </div>
+                            </form>
+                        </div>
+
+                        {/* Borrow Records Table */}
+                        <div className="bg-white p-6 rounded-lg shadow-md">
+                            <h3 className="text-xl font-semibold mb-4">Borrow Records</h3>
+
+                            {borrowRecords.length === 0 ? (
+                                <p className="text-gray-500">No borrow records found.</p>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Book</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Borrow Date</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200">
+                                       {/* {borrowRecords.map(record => (
+                                            <tr key={record._id}>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="text-sm font-medium text-gray-900">
+                                                        {users.find(u => u._id === record.userId)?.name || 'Unknown'}
+                                                    </div>
+                                                    <div className="text-sm text-gray-500">
+                                                        {users.find(u => u._id === record.userId)?.email || ''}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="text-sm font-medium text-gray-900">
+                                                        {books.find(b => b._id === record.bookId)?.title || 'Unknown'}
+                                                    </div>
+                                                    <div className="text-sm text-gray-500">
+                                                        {books.find(b => b._id === record.bookId)?.author || ''}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    {new Date(record.borrowDate).toLocaleDateString()}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    {new Date(record.dueDate).toLocaleDateString()}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                      ${record.status === 'borrowed' ? 'bg-yellow-100 text-yellow-800' :
+                        record.status === 'returned' ? 'bg-green-100 text-green-800' :
+                            'bg-red-100 text-red-800'}`}>
+                      {record.status}
+                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                    <button
+                                                        onClick={() => handleEditBorrowRecord(record)}
+                                                        className="text-blue-600 hover:text-blue-900 mr-4"
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleReturnBook(record._id)}
+                                                        className="text-green-600 hover:text-green-900 mr-4"
+                                                    >
+                                                        Mark Returned
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}*/}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 }

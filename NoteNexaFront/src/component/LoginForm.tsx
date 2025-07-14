@@ -12,9 +12,6 @@ import {login} from "../Store/slice/AuthSlice.ts";
 import {useNavigate} from "react-router-dom";
 
 
-
-
-
 export default function AuthSystem() {
     const MySwal = withReactContent(Swal);
     const [activeTab, setActiveTab] = useState<"login" | "register">("login");

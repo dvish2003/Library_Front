@@ -65,7 +65,7 @@ export function Footer() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
                     <div>
                         <h3 className="text-white text-xl font-bold mb-6 flex items-center">
-                            <span className="text-yellow-400">Note</span>Nexa
+                            <span className="text-yellow-400">Book</span>Nexus
                         </h3>
                         <p className="mb-4">
                             The ultimate note-taking app for professionals and students alike.
