@@ -2,7 +2,7 @@ import {createBrowserRouter} from "react-router-dom";
 import Layout from "./pages/Layout.tsx";
 import HeroSection from "./pages/HeroSection.tsx";
 import LoginForm from "./component/LoginForm.tsx";
-import HomePage from "./pages/HomePage.tsx";
+import {HomePage} from "./pages/HomePage.tsx";
 
 export const router = createBrowserRouter([
 

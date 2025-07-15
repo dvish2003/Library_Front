@@ -1,23 +1,23 @@
-import {apiClient_1} from "./apiClient.ts";
+import {apiClient_2} from "./apiClient.ts";
 import type {BookForm} from "../models/Books.ts";
 
 export const bookSave = async (book:BookForm) => {
-    const response = await apiClient_1.post("/books/addBook",book);
+    const response = await apiClient_2.post("/books/addBook",book);
     console.log("return response data",response.data);
     return response.data;
 }
 export const bookUpdate = async (book:BookForm) => {
-    const response = await apiClient_1.put("/books/updateBook",book);
+    const response = await apiClient_2.put("/books/updateBook",book);
     console.log("return response data",response.data);
     return response.data;
 }
 export const deleteBook = async (book:BookForm) => {
-    const response = await apiClient_1.post("/books/deleteBook",book);
+    const response = await apiClient_2.post("/books/deleteBook",book);
     console.log("return response data",response.data);
     return response.data;
 }
 export const getAllBook = async () => {
-    const response = await apiClient_1.post("/books/getAll");
+    const response = await apiClient_2.post("/books/getAll");
     console.log("return response data",response.data);
     return response.data;
 }

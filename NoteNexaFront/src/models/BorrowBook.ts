@@ -6,8 +6,8 @@ export type BorrowBook = {
     memberEmail: string;
     borrowDate: Date;
     returnDate: Date;
-    status: "borrowed" | "returned" | "overdue";
-    payStatus: "paid" | "lending";
+    status: string;
+    payStatus: string;
     payAmount: number;
 }
 export type BorrowBookForm = {

@@ -7,9 +7,9 @@ import {addUserMember, deleteUserMember, getAllUser, updateUserMember} from "../
 import type {Book, BookForm} from "../models/Books.ts";
 import {bookSave, bookUpdate, deleteBook, getAllBook} from "../service/bookService.ts";
 import type {BorrowBook, BorrowBookForm} from "../models/BorrowBook.ts";
-import {getAllBorrowBook, saveBorrowBook, updateBorrowBook} from "../service/borrowBookService.ts";
+import {getAllBorrowBook, overDueBorrowBook, saveBorrowBook, updateBorrowBook} from "../service/borrowBookService.ts";
 
-export default function HomePage() {
+export function HomePage() {
     const [activeTab, setActiveTab] = useState("members");
     const MySwal = withReactContent(Swal);
 
@@ -27,12 +27,13 @@ export default function HomePage() {
         handleGetAllUser()
         handleGetAllBooks()
         handleGetAllBorrowBook()
+        handleCheckAllOverDue()
     }, []);
 
 
     //books...............................................................................................
     const [books, setBooks] = useState<Book[]>([]);
-    const [bookFrom,setBookFrom] = useState<BookForm>({
+    const [bookFrom, setBookFrom] = useState<BookForm>({
         title: "",
         author: "",
         availableCopies: 0,
@@ -40,8 +41,8 @@ export default function HomePage() {
         description: ""
     })
 
-    const[click,setIsClick] = useState(false);
-    const[bookClick,setBookIsClick] = useState(false);
+    const [click, setIsClick] = useState(false);
+    const [bookClick, setBookIsClick] = useState(false);
 
 
     //borrowBooks....................................................................................................
@@ -53,15 +54,12 @@ export default function HomePage() {
         borrowDate: new Date().toISOString().split('T')[0],
         returnDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         status: 'borrowed',
-        payStatus:"paid",
+        payStatus: "paid",
         payAmount: 0
     });
     const [borrowRecords, setBorrowRecords] = useState<BorrowBook[]>([]);
     const [borrowRecords_2, setBorrowRecords_2] = useState<BorrowBook[]>([]);
-
-
-
-
+    const [overDueBorrowRecords, setOverDueBorrowRecords] = useState<BorrowBook[]>([]);
 
 
     const showSuccessAlert = (title: string, html: string) => {
@@ -104,9 +102,11 @@ export default function HomePage() {
     };
 
 
+
+
     //Handle Users...............................................................................
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
+        const {name, value} = e.target;
         setFormData(prev => ({
             ...prev,
             [name]: value
@@ -114,17 +114,16 @@ export default function HomePage() {
     };
     const handleGetAllUser = async () => {
 
-        try{
+        try {
             const response = await getAllUser();
             if (response.status === 200) {
                 const users: LibraryMemberUser[] = response.message;
                 setUsers(users);
-            }
-            else {
+            } else {
                 await showErrorAlert("Error", "Failed to fetch members. Please try again.");
             }
 
-        }catch (e) {
+        } catch (e) {
             console.log(e);
         }
 
@@ -145,22 +144,21 @@ export default function HomePage() {
                 });
                 await handleGetAllUser()
                 await showSuccessAlert("Success", "Member added successfully!");
-            }
-            else {
+            } else {
                 await showErrorAlert("Error", "Failed to add member. Please try again.");
             }
-        }catch (e) {
+        } catch (e) {
             console.error("Error adding member:", e);
-            await   showErrorAlert("Error", "Failed to add member. Please try again.");
+            await showErrorAlert("Error", "Failed to add member. Please try again.");
         }
 
 
     };
-    const handleRowClick = (user:LibraryMemberUser) => {
+    const handleRowClick = (user: LibraryMemberUser) => {
         console.log("Row clicked:", user);
         setFormData(user)
         setIsClick(true)
-  }
+    }
     const handleUpdate = async () => {
         console.log("Update button clicked with data:", formData);
         try {
@@ -186,32 +184,31 @@ export default function HomePage() {
     }
     const handledelete = async () => {
         console.log("Delete button clicked with data:", formData);
-       try{
-           const response = await deleteUserMember(formData)
+        try {
+            const response = await deleteUserMember(formData)
 
-           if(response.status === 200) {
-               setFormData({
-                   name: "",
-                   email: "",
-                   contact: "",
-                   address: ""
-               });
-               await handleGetAllUser();
-               await showSuccessAlert("Success", "Member deleted successfully!");
-               setIsClick(false)
-           }
-              else {
+            if (response.status === 200) {
+                setFormData({
+                    name: "",
+                    email: "",
+                    contact: "",
+                    address: ""
+                });
+                await handleGetAllUser();
+                await showSuccessAlert("Success", "Member deleted successfully!");
+                setIsClick(false)
+            } else {
                 await showErrorAlert("Error", "Failed to delete member. Please try again.");
-              }
-       }catch (e) {
-           console.log(e);
-       }
+            }
+        } catch (e) {
+            console.log(e);
+        }
     }
 
 
     //Handle Books................................................................................
     const handleBookInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
+        const {name, value} = e.target;
         setBookFrom(prev => ({
             ...prev,
             [name]: value
@@ -224,12 +221,12 @@ export default function HomePage() {
         )
 
         try {
-            if(bookFrom.totalCopies == 0 || bookFrom.availableCopies == 0){
+            if (bookFrom.totalCopies == 0 || bookFrom.availableCopies == 0) {
                 await showErrorAlert("Validation Error", "Total copies and available copies must be greater than zero.");
                 return;
             }
             const response = await bookSave(bookFrom);
-            if(response.status === 201) {
+            if (response.status === 201) {
                 setBookFrom({
                     title: "",
                     author: "",
@@ -239,11 +236,10 @@ export default function HomePage() {
                 })
                 await handleGetAllBooks();
                 await showSuccessAlert("Success", "Book added successfully!");
-            }
-            else {
+            } else {
                 await showErrorAlert("Error", "Failed to add book. Please try again.");
             }
-        }catch (e) {
+        } catch (e) {
             console.log(e)
             showErrorAlert("Error", "Failed to add book. Please try again.");
         }
@@ -265,11 +261,10 @@ export default function HomePage() {
                 setBookIsClick(false)
                 await handleGetAllBooks();
                 await showSuccessAlert("Success", "Book Update successfully!");
-            }
-            else {
+            } else {
                 await showErrorAlert("Error", "Failed to update book. Please try again.");
             }
-        }catch (e) {
+        } catch (e) {
             console.log(e)
             await showErrorAlert("Error", "Failed to add book. Please try again.");
 
@@ -279,30 +274,29 @@ export default function HomePage() {
     const handleBookDelete = async (e: React.FormEvent) => {
         e.preventDefault();
         console.log("BOOK delete");
-       try {
-           const response = await deleteBook(bookFrom);
-           if (response.status === 200) {
-               setBookFrom({
-                   title: "",
-                   author: "",
-                   availableCopies: 0,
-                   totalCopies: 0,
-                   description: ""
-               })
-               setBookIsClick(false)
-               await handleGetAllBooks();
-               await showSuccessAlert("Success", "Book delete successfully!");
-           }
-           else {
-               await showErrorAlert("Error", "Failed to delete book. Please try again.");
-           }
-       }catch (e){
-           console.log(e)
-              await showErrorAlert("Error", "Failed to delete book. Please try again.");
-       }
+        try {
+            const response = await deleteBook(bookFrom);
+            if (response.status === 200) {
+                setBookFrom({
+                    title: "",
+                    author: "",
+                    availableCopies: 0,
+                    totalCopies: 0,
+                    description: ""
+                })
+                setBookIsClick(false)
+                await handleGetAllBooks();
+                await showSuccessAlert("Success", "Book delete successfully!");
+            } else {
+                await showErrorAlert("Error", "Failed to delete book. Please try again.");
+            }
+        } catch (e) {
+            console.log(e)
+            await showErrorAlert("Error", "Failed to delete book. Please try again.");
+        }
 
     }
-    const handleBookRowClick = (book:Book) => {
+    const handleBookRowClick = (book: Book) => {
         console.log("Row clicked:", book);
         setBookFrom(book)
         setBookIsClick(true)
@@ -323,11 +317,10 @@ export default function HomePage() {
     }
 
 
-
 //borrow......................................................
 
     const handleBorrowInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const { name, value } = e.target;
+        const {name, value} = e.target;
         setBorrowForm(prev => ({
             ...prev,
             [name]: value
@@ -335,34 +328,33 @@ export default function HomePage() {
     };
 
 
-    const handleBorrowSubmit = async (e:React.FormEvent) => {
+    const handleBorrowSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-     try {
-         const response = await saveBorrowBook(borrowForm);
-         if(response.status === 201) {
-             await handleGetAllBorrowBook();
-             setBorrowForm({
-                 bookId: '',
-                 bookTitle: '',
-                 memberId: '',
-                 memberEmail: '',
-                 borrowDate: new Date().toISOString().split('T')[0],
-                 returnDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                 status: 'borrowed',
-                 payStatus:"paid",
-                 payAmount: 0
-             });
-             await showSuccessAlert("Success", "Book borrowed successfully!");
-         }
-         else {
-             await showErrorAlert("Error", "Failed to borrow book. Please try again.");
-         }
+        try {
+            const response = await saveBorrowBook(borrowForm);
+            if (response.status === 201) {
+                await handleGetAllBorrowBook();
+                setBorrowForm({
+                    bookId: '',
+                    bookTitle: '',
+                    memberId: '',
+                    memberEmail: '',
+                    borrowDate: new Date().toISOString().split('T')[0],
+                    returnDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                    status: 'borrowed',
+                    payStatus: "paid",
+                    payAmount: 0
+                });
+                await showSuccessAlert("Success", "Book borrowed successfully!");
+            } else {
+                await showErrorAlert("Error", "Failed to borrow book. Please try again.");
+            }
 
-     }catch (e){
+        } catch (e) {
             console.error("Error borrowing book:", e);
             await showErrorAlert("Error", "Failed to borrow book. Please try again.");
-     }
+        }
 
     };
 
@@ -371,14 +363,19 @@ export default function HomePage() {
         try {
             const response = await getAllBorrowBook();
             if (response.status === 200) {
+
                 const borrowRecords: BorrowBook[] = response.bookBorrows;
                 setBorrowRecords(borrowRecords);
 
 
                 const borrowRecordsStatusBorrow: BorrowBook[] = borrowRecords.filter(BR => BR.status === "borrowed");
-                console.log("ssssssssssssjjjjjjjjjjj",borrowRecordsStatusBorrow);
                 setBorrowRecords_2(borrowRecordsStatusBorrow);
-                console.log("Borrow books",borrowRecords)
+
+                const overDueBorrowBook: BorrowBook[] = borrowRecords.filter(BR =>
+                    BR.status === "borrowed" && new Date(BR.returnDate) < new Date()
+                );
+                setOverDueBorrowRecords(overDueBorrowBook);
+
             } else {
                 await showErrorAlert("Error", "Failed to fetch borrow records. Please try again.");
             }
@@ -389,14 +386,21 @@ export default function HomePage() {
 
     }
 
-    const handleReturnBook = async (recordeId:string) => {
+    const handleCheckAllOverDue = async () => {
+        console.log(borrowRecords_2.length.valueOf())
+    };
+
+    const handleReturnBook = async (recordeId: string) => {
         try {
             const borrowID = recordeId;
 
             //getBorrowRecord
-            const borrowRecord = borrowRecords_2.find(record => record._id === borrowID);
-            borrowRecord.status = 'returned';
-            borrowRecord.payStatus = 'paid';
+            const borrowRecord: BorrowBook | undefined = borrowRecords_2.find(record => record._id === borrowID);
+            if (!borrowRecord) {
+                await showErrorAlert("Error", "Borrow record not found.");
+                return;
+            }
+
             if (!borrowRecord) {
                 await showErrorAlert("Error", "Borrow record not found.");
                 return;
@@ -409,12 +413,37 @@ export default function HomePage() {
                 await showErrorAlert("Error", "Failed to return book. Please try again.");
             }
 
-    } catch (e){
-        console.log(e)
+        } catch (e) {
+            console.log(e)
+        }
+
+    };
+    const handleSendEmail = async (recordeId: string) => {
+        try{
+            const borrowID = recordeId;
+
+            const borrowRecord: BorrowBook | undefined = overDueBorrowRecords.find(record => record._id === borrowID);
+            if (!borrowRecord) {
+                await showErrorAlert("Error", "Borrow record not found.");
+                return;
+            }
+
+            const response = await overDueBorrowBook(borrowRecord);
+            if (response.status === 200) {
+                await handleGetAllBorrowBook();
+                await showSuccessAlert("Success", "Email sent successfully!");
+            } else {
+                await showErrorAlert("Error", "Failed to send email. Please try again.");
+            }
+
+        }catch (e){
+            console.log(e);
+            await showErrorAlert("Error", "Failed to send email. Please try again.");
+        }
+
     }
 
-};
-    return (
+        return (
         <div className="flex h-screen bg-gray-100">
             <div className="w-64 bg-blue-800 text-white p-4">
                 <h1 className="text-2xl font-bold mb-8">Library System</h1>
@@ -425,7 +454,7 @@ export default function HomePage() {
                                 onClick={() => setActiveTab("members")}
                                 className={`flex items-center w-full p-2 rounded-lg ${activeTab === "members" ? "bg-blue-700" : "hover:bg-blue-600"}`}
                             >
-                                <FaUsers className="mr-3" />
+                                <FaUsers className="mr-3"/>
                                 Members
                             </button>
                         </li>
@@ -434,7 +463,7 @@ export default function HomePage() {
                                 onClick={() => setActiveTab("books")}
                                 className={`flex items-center w-full p-2 rounded-lg ${activeTab === "books" ? "bg-blue-700" : "hover:bg-blue-600"}`}
                             >
-                                <FaBook className="mr-3" />
+                                <FaBook className="mr-3"/>
                                 Books
                             </button>
                         </li>
@@ -443,7 +472,7 @@ export default function HomePage() {
                                 onClick={() => setActiveTab("borrow")}
                                 className={`flex items-center w-full p-2 rounded-lg ${activeTab === "borrow" ? "bg-blue-700" : "hover:bg-blue-600"}`}
                             >
-                                <FaExchangeAlt className="mr-3" />
+                                <FaExchangeAlt className="mr-3"/>
                                 Borrow Books
                             </button>
                         </li>
@@ -452,8 +481,17 @@ export default function HomePage() {
                                 onClick={() => setActiveTab("history")}
                                 className={`flex items-center w-full p-2 rounded-lg ${activeTab === "history" ? "bg-blue-700" : "hover:bg-blue-600"}`}
                             >
-                                <FaExchangeAlt className="mr-3" />
+                                <FaExchangeAlt className="mr-3"/>
                                 History Borrow Books
+                            </button>
+                        </li>
+                        <li>
+                            <button
+                                onClick={() => setActiveTab("overDue")}
+                                className={`flex items-center w-full p-2 rounded-lg ${activeTab === "overDue" ? "bg-blue-700" : "hover:bg-blue-600"}`}
+                            >
+                                <FaExchangeAlt className="mr-3"/>
+                                OverDue Borrow Books
                             </button>
                         </li>
                     </ul>
@@ -584,7 +622,7 @@ export default function HomePage() {
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
                                         </tr>
                                         </thead>
-                                        <tbody className="bg-white divide-y divide-gray-200" >
+                                        <tbody className="bg-white divide-y divide-gray-200">
                                         {users.map((user) => (
                                             <tr key={user._id}
                                                 onClick={() => handleRowClick(user)}
@@ -620,7 +658,8 @@ export default function HomePage() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                     {bookClick && (
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Book Id</label>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Book
+                                                Id</label>
                                             <input
                                                 type="text"
                                                 name="_id"
@@ -632,7 +671,8 @@ export default function HomePage() {
                                         </div>
                                     )}
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Book Title</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Book
+                                            Title</label>
                                         <input
                                             type="text"
                                             name="title"
@@ -654,7 +694,8 @@ export default function HomePage() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Book available Copies</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Book available
+                                            Copies</label>
                                         <input
                                             type="number"
                                             name="availableCopies"
@@ -665,7 +706,8 @@ export default function HomePage() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Book Total</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Book
+                                            Total</label>
                                         <input
                                             type="number"
                                             name="totalCopies"
@@ -676,7 +718,8 @@ export default function HomePage() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Book Description</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Book
+                                            Description</label>
                                         <input
                                             type="text"
                                             name="description"
@@ -735,12 +778,16 @@ export default function HomePage() {
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Author</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Available Copies</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Copies</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Available
+                                                Copies
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total
+                                                Copies
+                                            </th>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                                         </tr>
                                         </thead>
-                                        <tbody className="bg-white divide-y divide-gray-200" >
+                                        <tbody className="bg-white divide-y divide-gray-200">
                                         {books.map(book => (
                                             <tr key={book._id}
                                                 onClick={() => handleBookRowClick(book)}
@@ -771,7 +818,8 @@ export default function HomePage() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
 
                                     <div className="col-span-1">
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Select Member</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Select
+                                            Member</label>
                                         <select
                                             name="memberId"
                                             value={borrowForm.memberId}
@@ -783,7 +831,7 @@ export default function HomePage() {
                                             {users.map(user => (
                                                 <option key={user._id}
                                                         value={user._id}>
-                                                        {user.name} ({user.email})
+                                                    {user.name} ({user.email})
                                                 </option>
                                             ))}
                                         </select>
@@ -791,7 +839,8 @@ export default function HomePage() {
 
                                     {/* Book Selection */}
                                     <div className="col-span-1">
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Select Book</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Select
+                                            Book</label>
                                         <select
                                             name="bookId"
                                             value={borrowForm.bookId}
@@ -810,7 +859,8 @@ export default function HomePage() {
 
                                     {/* Borrow Date */}
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Borrow Date</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Borrow
+                                            Date</label>
                                         <input
                                             type="date"
                                             name="borrowDate"
@@ -851,7 +901,8 @@ export default function HomePage() {
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Pay Status</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Pay
+                                            Status</label>
                                         <select
                                             name="payStatus"
                                             value={borrowForm.payStatus}
@@ -874,13 +925,7 @@ export default function HomePage() {
                                         Save Record
                                     </button>
 
-                                 {/*   <button
-                                        type="button"
-                                        onClick={handleBorrowReset}
-                                        className="bg-gray-500 text-white py-2 px-6 rounded-md hover:bg-gray-600 transition"
-                                    >
-                                        Clear Form
-                                    </button>*/}
+
                                 </div>
                             </form>
                         </div>
@@ -898,10 +943,16 @@ export default function HomePage() {
                                         <tr>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member</th>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Book</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Borrow Date</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Borrow
+                                                Date
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due
+                                                Date
+                                            </th>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Status</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment
+                                                Status
+                                            </th>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                         </tr>
                                         </thead>
@@ -963,7 +1014,7 @@ export default function HomePage() {
                     </div>
                 )}
 
-                {activeTab === "history" &&(
+                {activeTab === "history" && (
                     <div>
                         <h2 className="text-2xl font-bold mb-6">Borrow History</h2>
                         <div className="bg-white p-6 rounded-lg shadow-md">
@@ -976,10 +1027,16 @@ export default function HomePage() {
                                         <tr>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member</th>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Book</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Borrow Date</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Return Date</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Borrow
+                                                Date
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Return
+                                                Date
+                                            </th>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Status</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment
+                                                Status
+                                            </th>
                                         </tr>
                                         </thead>
                                         <tbody className="bg-white divide-y divide-gray-200">
@@ -1036,6 +1093,95 @@ export default function HomePage() {
                         </div>
                     </div>
                 )}
+                {activeTab === "overDue" && (
+                    <div>
+                        <h2 className="text-2xl font-bold mb-6">OverDue Books</h2>
+                        <div className="bg-white p-6 rounded-lg shadow-md">
+                            {borrowRecords.length === 0 ? (
+                                <p className="text-gray-500">No overDue borrow book found.</p>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Book</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Borrow
+                                                Date
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Return
+                                                Date
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment
+                                                Status
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200">
+                                        {overDueBorrowRecords.map(record => (
+                                            <tr key={record._id}>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="text-sm font-medium text-gray-900">
+                                                        {users.find(u => u._id === record.memberId)?.name || 'Unknown'}
+                                                    </div>
+                                                    <div className="text-sm text-gray-500">
+                                                        {users.find(u => u._id === record.memberEmail)?.email || ''}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="text-sm font-medium text-gray-900">
+                                                        {books.find(b => b._id === record.bookId)?.title || 'Unknown'}
+                                                    </div>
+                                                    <div className="text-sm text-gray-
+500">
+                                                        {books.find(b => b._id === record.bookId)?.author || ''}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    {new Date(record.borrowDate).toLocaleDateString()}
+                                                </td>
+
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    {new Date(record.returnDate).toLocaleDateString()}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                                        ${record.status === 'borrowed' ? 'bg-yellow-100 text-yellow-800' :
+                                                        record.status === 'returned' ? 'bg-green-100 text-green-800' :
+                                                            'bg-red-100 text-red-800'}`}>
+                                                        {record.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                                        ${record.payStatus === 'paid' ? 'bg-green-100 text-green-800' :
+                                                        'bg-blue-100 text-blue-800'}`}>
+                                                        {record.payStatus}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                    <button
+                                                        onClick={() => handleSendEmail(record._id)}
+                                                        className="text-green-600 hover:text-green-900 mr-4"
+                                                    >
+                                                        Send Email
+                                                    </button>
+                                                </td>
+
+                                            </tr>
+
+                                        ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                            )}
+                        </div>
+                    </div>
+                )}
+
             </div>
         </div>
     );
