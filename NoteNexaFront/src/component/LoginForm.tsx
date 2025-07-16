@@ -168,7 +168,6 @@ export default function AuthSystem() {
         e.preventDefault();
         try {
             if (!validateForm()) return;
-
             const newUser: formUser = {
                 name: userForm.name,
                 email: userForm.email.toLowerCase(),
