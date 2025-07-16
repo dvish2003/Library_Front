@@ -241,7 +241,7 @@ export default function AuthSystem() {
     return (
         <div className="min-h-screen bg-gradient-to-br bg-transparent backdrop-blur-md flex items-center justify-center p-4"
              style={{
-                 backgroundImage: 'url("../src/assets/Back_ground_image.png")',
+                 backgroundImage: 'url("../src/assets/background.png")',
                  backgroundSize: 'cover',
                  backgroundRepeat: 'no-repeat',
                  backgroundAttachment: 'fixed',
