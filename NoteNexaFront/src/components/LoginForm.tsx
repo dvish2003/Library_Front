@@ -10,6 +10,7 @@ import withReactContent from 'sweetalert2-react-content';
 import {useDispatch} from "react-redux";
 import {login} from "../Store/slice/AuthSlice.ts";
 import {useNavigate} from "react-router-dom";
+import { setToken } from "../util/cookies.ts";
 
 
 export default function AuthSystem() {
@@ -143,7 +144,7 @@ export default function AuthSystem() {
                  return;
              }
 
-             localStorage.setItem('token', token);
+             setToken(token);
              dipatch(login());
 
              await showSuccessAlert(

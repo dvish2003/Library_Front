@@ -143,6 +143,7 @@ export function HomePage() {
                     address: ""
                 });
                 await handleGetAllUser()
+
                 await showSuccessAlert("Success", "Member added successfully!");
             } else {
                 await showErrorAlert("Error", "Failed to add member. Please try again.");
@@ -335,6 +336,7 @@ export function HomePage() {
             const response = await saveBorrowBook(borrowForm);
             if (response.status === 201) {
                 await handleGetAllBorrowBook();
+                await handleGetAllBooks();
                 setBorrowForm({
                     bookId: '',
                     bookTitle: '',
@@ -408,6 +410,7 @@ export function HomePage() {
             const response = await updateBorrowBook(borrowRecord);
             if (response.status === 200) {
                 await handleGetAllBorrowBook();
+                await handleGetAllBooks();
                 await showSuccessAlert("Success", "Book returned successfully!");
             } else {
                 await showErrorAlert("Error", "Failed to return book. Please try again.");
@@ -431,6 +434,7 @@ export function HomePage() {
             const response = await overDueBorrowBook(borrowRecord);
             if (response.status === 200) {
                 await handleGetAllBorrowBook();
+                await handleGetAllBooks();
                 await showSuccessAlert("Success", "Email sent successfully!");
             } else {
                 await showErrorAlert("Error", "Failed to send email. Please try again.");
